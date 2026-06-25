@@ -65,13 +65,29 @@ impl RiskEngine {
         // 2. ASN / Infrastructure Reputation Weighting
         if let Some(asn) = &dns.asn_hint {
             let asn_upper = asn.to_uppercase();
-            let is_high_risk = HIGH_RISK_ASN_KEYWORDS
-                .iter()
-                .any(|&keyword| asn_upper.contains(keyword));
+            
+            // Explicit check for bulletproof / abused cloud infra
+            let abused_clouds = ["VULTR", "DIGITALOCEAN", "HOSTINGER", "TENCENT"];
+            let mut cloud_matched = None;
+            for &cloud in &abused_clouds {
+                if asn_upper.contains(cloud) {
+                    cloud_matched = Some(cloud);
+                    break;
+                }
+            }
 
-            if is_high_risk {
+            if let Some(cloud) = cloud_matched {
                 score += 20;
-                indicators.push(format!("High-Risk Infrastructure / ASN Detected ({})", asn));
+                indicators.push(format!("Heavily Abused Cloud Infra / Bulletproof Hosting Detected ({})", cloud));
+            } else {
+                let is_high_risk = HIGH_RISK_ASN_KEYWORDS
+                    .iter()
+                    .any(|&keyword| asn_upper.contains(keyword));
+
+                if is_high_risk {
+                    score += 20;
+                    indicators.push(format!("High-Risk Infrastructure / ASN Detected ({})", asn));
+                }
             }
         }
 
@@ -99,6 +115,21 @@ impl RiskEngine {
             if h.similarity_score > 0.85 {
                 score += 25;
                 indicators.push(format!("High Brand Page Similarity Index ({:.1}%)", h.similarity_score * 100.0));
+            }
+
+            // Advanced Phishing Engine
+            if h.brand_title_match {
+                score += 10;
+                indicators.push("Lookalike Domain Contains Brand Name in Page Title".to_string());
+            }
+
+            if h.has_login_form {
+                score += 15;
+                indicators.push("Credential Harvesting Form Signatures Detected (High-Confidence Phishing)".to_string());
+            }
+
+            if h.has_favicon {
+                indicators.push("Custom Favicon Shortcut Detected".to_string());
             }
         }
 

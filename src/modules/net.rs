@@ -4,13 +4,17 @@ use std::net::IpAddr;
 use std::time::Duration;
 use serde::Deserialize;
 
-pub fn build_http_client(timeout: u64) -> Result<Client> {
-    let client = Client::builder()
+pub fn build_http_client(timeout: u64, proxy_url: Option<&str>) -> Result<Client> {
+    let mut builder = Client::builder()
         .timeout(Duration::from_secs(timeout))
         .danger_accept_invalid_certs(true)
-        .redirect(reqwest::redirect::Policy::limited(3))
-        .build()?;
-    Ok(client)
+        .redirect(reqwest::redirect::Policy::limited(3));
+        
+    if let Some(p) = proxy_url {
+        builder = builder.proxy(reqwest::Proxy::all(p)?);
+    }
+    
+    Ok(builder.build()?)
 }
 
 #[derive(Deserialize)]

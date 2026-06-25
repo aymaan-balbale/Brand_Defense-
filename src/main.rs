@@ -55,6 +55,10 @@ struct Cli {
     /// Verbose logging (set RUST_LOG=debug for full traces)
     #[arg(short = 'v', long)]
     verbose: bool,
+
+    /// Optional Proxy URL for HTTP requests (e.g. http://127.0.0.1:8080)
+    #[arg(short = 'p', long)]
+    proxy: Option<String>,
 }
 
 // ─── Entry point ─────────────────────────────────────────────────────────────
@@ -84,7 +88,7 @@ async fn main() -> Result<()> {
 
     // ── 2. Optionally fetch baseline homepage for fingerprinting ────────────
     let baseline_html: Option<String> = if cli.fingerprint {
-        fetch_baseline(&cli.domain, cli.timeout).await
+        fetch_baseline(&cli.domain, cli.timeout, cli.proxy.as_deref()).await
     } else {
         None
     };
@@ -93,7 +97,7 @@ async fn main() -> Result<()> {
     let semaphore  = Arc::new(Semaphore::new(cli.concurrency));
     let risk_engine = Arc::new(RiskEngine::new());
     let http_client = Arc::new(
-        modules::net::build_http_client(cli.timeout)
+        modules::net::build_http_client(cli.timeout, cli.proxy.as_deref())
             .context("Failed to build HTTP client")?,
     );
     let baseline   = Arc::new(baseline_html);
@@ -108,6 +112,7 @@ async fn main() -> Result<()> {
     );
 
     let mut tasks = Vec::with_capacity(variants.len());
+    let brand_domain = Arc::new(cli.domain.clone());
 
     for variant in variants {
         let sem        = Arc::clone(&semaphore);
@@ -116,11 +121,16 @@ async fn main() -> Result<()> {
         let baseline_c = Arc::clone(&baseline);
         let pb_c       = pb.clone();
         let timeout    = cli.timeout;
+        let brand_c    = Arc::clone(&brand_domain);
+
+        // Simple concurrency throttle: thread sleep delay inside the asynchronous network worker loop
+        // This guarantees outbound requests are spread out cleanly and avoids remote rate-limiting.
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
         tasks.push(tokio::spawn(async move {
             let _permit = sem.acquire().await.unwrap();
             pb_c.set_message(format!("{}", variant.fqdn));
-            let result = analyse_variant(variant, &client, &engine, &baseline_c, timeout).await;
+            let result = analyse_variant(variant, &client, &engine, &baseline_c, timeout, &brand_c).await;
             pb_c.inc(1);
             result
         }));
@@ -168,11 +178,12 @@ async fn analyse_variant(
     engine:  &RiskEngine,
     baseline: &Option<String>,
     timeout: u64,
+    brand_domain: &str,
 ) -> Option<ScanResult> {
     let fqdn = variant.fqdn.clone();
 
     // DNS
-    let dns = modules::dns::resolve(&fqdn).await;
+    let dns = modules::dns::resolve(&fqdn, client).await;
 
     // Only proceed with deeper checks if the domain resolves
     let mx = if dns.resolves {
@@ -193,7 +204,7 @@ async fn analyse_variant(
 
     // HTTP fingerprint
     let http = if dns.resolves {
-        modules::http::fetch_and_fingerprint(&fqdn, client, baseline, timeout).await.ok()
+        modules::http::fetch_and_fingerprint(&fqdn, client, baseline, timeout, brand_domain).await.ok()
     } else {
         None
     };
@@ -222,9 +233,9 @@ async fn analyse_variant(
 
 // ─── Fetch baseline homepage ──────────────────────────────────────────────────
 
-async fn fetch_baseline(domain: &str, timeout: u64) -> Option<String> {
+async fn fetch_baseline(domain: &str, timeout: u64, proxy: Option<&str>) -> Option<String> {
     let url = format!("https://{}", domain);
-    let client = modules::net::build_http_client(timeout).ok()?;
+    let client = modules::net::build_http_client(timeout, proxy).ok()?;
     match client.get(&url).send().await {
         Ok(resp) => resp.text().await.ok(),
         Err(e) => {

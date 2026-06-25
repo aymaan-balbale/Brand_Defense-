@@ -45,7 +45,7 @@ pub struct DnsInfo {
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /// Resolve A and AAAA records for a fully-qualified domain name.
-pub async fn resolve(fqdn: &str) -> DnsInfo {
+pub async fn resolve(fqdn: &str, client: &reqwest::Client) -> DnsInfo {
     let resolver = get_resolver().await;
     let mut ips: Vec<IpAddr> = Vec::new();
 
@@ -60,9 +60,7 @@ pub async fn resolve(fqdn: &str) -> DnsInfo {
 
     let mut asn_hint = None;
     if let Some(first_ip) = ips.first() {
-        if let Ok(client) = net::build_http_client(5) {
-            asn_hint = net::lookup_asn(first_ip, &client).await;
-        }
+        asn_hint = net::lookup_asn(first_ip, client).await;
     }
 
     DnsInfo {
