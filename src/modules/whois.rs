@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 pub struct WhoisInfo {
     pub registrar: Option<String>,
     pub creation_date: Option<chrono::DateTime<chrono::Utc>>,
+    pub age_days: Option<u64>,
 }
 
 pub async fn query(_fqdn: &str) -> Result<WhoisInfo> {
@@ -14,5 +15,6 @@ pub async fn query(_fqdn: &str) -> Result<WhoisInfo> {
     Ok(WhoisInfo {
         registrar: Some("Stub Registrar".to_string()),
         creation_date: Some(chrono::Utc::now()),
+        age_days: Some(50),
     })
 }

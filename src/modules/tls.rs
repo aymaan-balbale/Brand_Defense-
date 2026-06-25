@@ -7,6 +7,7 @@ pub struct TlsInfo {
     pub subject: String,
     pub not_after: chrono::DateTime<chrono::Utc>,
     pub is_valid: bool,
+    pub san_mismatch: bool,
 }
 
 pub async fn inspect(_fqdn: &str, _timeout_secs: u64) -> Result<TlsInfo> {
@@ -18,5 +19,6 @@ pub async fn inspect(_fqdn: &str, _timeout_secs: u64) -> Result<TlsInfo> {
         subject: "Stub Subject".to_string(),
         not_after: chrono::Utc::now(),
         is_valid: true,
+        san_mismatch: false,
     })
 }

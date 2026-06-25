@@ -113,6 +113,26 @@ pub fn render(domain: &str, results: &[ScanResult], output: &Path, elapsed: Dura
                 color: var(--primary);
                 margin-right: 0.25rem;
             }
+            .btn {
+                background-color: var(--surface);
+                color: var(--text);
+                border: 1px solid var(--border);
+                padding: 0.5rem 1rem;
+                border-radius: 0.25rem;
+                cursor: pointer;
+                font-weight: 600;
+                font-size: 0.875rem;
+                transition: all 0.2s;
+            }
+            .btn:hover {
+                background-color: var(--border);
+                color: #fff;
+            }
+            .actions {
+                display: flex;
+                gap: 0.5rem;
+                justify-content: flex-end;
+            }
         </style>
     </head>
     <body>
@@ -122,8 +142,12 @@ pub fn render(domain: &str, results: &[ScanResult], output: &Path, elapsed: Dura
                 <p>Typosquatting Intelligence Report for <strong>{{ domain }}</strong></p>
             </div>
             <div class="header-right">
-                <p>Generated: {{ timestamp }}</p>
-                <p>Scan Duration: {{ elapsed_secs }}s</p>
+                <p style="margin-bottom: 0.5rem;">Generated: {{ timestamp }}</p>
+                <p style="margin-top: 0; margin-bottom: 1rem;">Scan Duration: {{ elapsed_secs }}s</p>
+                <div class="actions">
+                    <button id="btn-csv" class="btn">Export to CSV</button>
+                    <button id="btn-json" class="btn">Copy as JSON</button>
+                </div>
             </div>
         </div>
 
@@ -168,6 +192,68 @@ pub fn render(domain: &str, results: &[ScanResult], output: &Path, elapsed: Dura
                 {% endfor %}
             </tbody>
         </table>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const getTableData = () => {
+                    const rows = Array.from(document.querySelectorAll('table tbody tr'));
+                    return rows.map(row => {
+                        const cells = row.querySelectorAll('td');
+                        return {
+                            variant: cells[0].innerText.trim(),
+                            kind: cells[1].innerText.trim(),
+                            risk_score: parseInt(cells[2].innerText.trim(), 10) || 0,
+                            risk_label: cells[3].innerText.trim(),
+                            dns_resolves: cells[4].innerText.trim(),
+                            mx_active: cells[5].innerText.trim(),
+                            indicators: cells[6].innerText.trim().split('\n').map(i => i.trim()).filter(i => i)
+                        };
+                    });
+                };
+
+                document.getElementById('btn-csv').addEventListener('click', () => {
+                    const data = getTableData();
+                    if (data.length === 0) return;
+                    
+                    const headers = ['Variant', 'Kind', 'Risk Score', 'Risk Label', 'DNS Resolves', 'MX Active', 'Indicators'];
+                    const csvRows = [headers.join(',')];
+                    
+                    for (const row of data) {
+                        const values = [
+                            row.variant,
+                            row.kind,
+                            row.risk_score,
+                            row.risk_label,
+                            row.dns_resolves,
+                            row.mx_active,
+                            `"${row.indicators.join('; ')}"`
+                        ];
+                        csvRows.push(values.join(','));
+                    }
+                    
+                    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'brandguard_export.csv';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                });
+
+                document.getElementById('btn-json').addEventListener('click', async () => {
+                    const data = getTableData();
+                    try {
+                        await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+                        const btn = document.getElementById('btn-json');
+                        const originalText = btn.innerText;
+                        btn.innerText = 'Copied!';
+                        setTimeout(() => btn.innerText = originalText, 2000);
+                    } catch (err) {
+                        alert('Failed to copy JSON. Error: ' + err);
+                    }
+                });
+            });
+        </script>
     </body>
     </html>
     "#;

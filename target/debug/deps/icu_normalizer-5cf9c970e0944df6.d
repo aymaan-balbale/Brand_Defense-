@@ -1,8 +1,0 @@
-C:\Users\Aryaan Balbale\OneDrive\Desktop\RUST\Brand_Defense\target\debug\deps\icu_normalizer-5cf9c970e0944df6.d: C:\Users\Aryaan\ Balbale\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\icu_normalizer-2.2.0\src\lib.rs C:\Users\Aryaan\ Balbale\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\icu_normalizer-2.2.0\src\properties.rs C:\Users\Aryaan\ Balbale\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\icu_normalizer-2.2.0\src\provider.rs C:\Users\Aryaan\ Balbale\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\icu_normalizer-2.2.0\src\uts46.rs
-
-C:\Users\Aryaan Balbale\OneDrive\Desktop\RUST\Brand_Defense\target\debug\deps\libicu_normalizer-5cf9c970e0944df6.rmeta: C:\Users\Aryaan\ Balbale\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\icu_normalizer-2.2.0\src\lib.rs C:\Users\Aryaan\ Balbale\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\icu_normalizer-2.2.0\src\properties.rs C:\Users\Aryaan\ Balbale\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\icu_normalizer-2.2.0\src\provider.rs C:\Users\Aryaan\ Balbale\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\icu_normalizer-2.2.0\src\uts46.rs
-
-C:\Users\Aryaan\ Balbale\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\icu_normalizer-2.2.0\src\lib.rs:
-C:\Users\Aryaan\ Balbale\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\icu_normalizer-2.2.0\src\properties.rs:
-C:\Users\Aryaan\ Balbale\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\icu_normalizer-2.2.0\src\provider.rs:
-C:\Users\Aryaan\ Balbale\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\icu_normalizer-2.2.0\src\uts46.rs:

@@ -1,9 +1,22 @@
-use crate::modules::typo::DomainVariant;
-use crate::modules::dns::DnsInfo;
-use crate::modules::tls::TlsInfo;
-use crate::modules::whois::WhoisInfo;
-use crate::modules::http::HttpInfo;
+// src/modules/risk.rs
 use serde::{Deserialize, Serialize};
+use crate::modules::{dns::DnsInfo, tls::TlsInfo, whois::WhoisInfo, http::HttpInfo, typo::DomainVariant};
+
+// ─── Threat Intel: High-Risk Infrastructure ─────────────────────────────────
+// A baseline list of ASNs or Organization names notorious for ignoring abuse 
+// complaints, bulletproof hosting, or high volumes of automated EASM threats.
+static HIGH_RISK_ASN_KEYWORDS: &[&str] = &[
+    "AS206264",   // Hostinger (Heavy volume of cheap/free tier abuse)
+    "AS132203",   // Tencent Cloud (Frequent lookalike hosting)
+    "AS45102",    // Alibaba (Often used for short-lived malicious infra)
+    "AS14061",    // DigitalOcean (Automated droplet abuse)
+    "AS20473",    // Choopa / Vultr (High abuse rate)
+    "DDOS-GUARD", // Known bulletproof proxy/hosting
+    "FLOKINET",   // Offshore / bulletproof hosting
+    "OFFSHORE",
+    "ALEXHOST",
+    "SHINJIRU",
+];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScoreCard {
@@ -26,28 +39,86 @@ pub struct ScanResult {
     pub scanned_at: chrono::DateTime<chrono::Utc>,
 }
 
-pub struct RiskEngine {}
+pub struct RiskEngine;
 
 impl RiskEngine {
-    pub fn new() -> Self {
-        Self {}
-    }
+    pub fn new() -> Self { Self }
 
     pub fn score(
         &self,
-        _dns: &DnsInfo,
-        _mx: bool,
-        _tls: &Option<TlsInfo>,
-        _whois: &Option<WhoisInfo>,
-        _http: &Option<HttpInfo>,
+        dns: &DnsInfo,
+        mx_active: bool,
+        tls: &Option<TlsInfo>,
+        whois: &Option<WhoisInfo>,
+        http: &Option<HttpInfo>,
     ) -> ScoreCard {
-        // Stub implementation to allow project to compile.
-        // In a full implementation, we would apply risk weights based on MX records,
-        // certificate validity, WHOIS age, and HTTP similarity.
-        ScoreCard {
-            total: 50,
-            label: "Medium".to_string(),
-            indicators: vec!["Stub Indicator".to_string()],
+        let mut score: u32 = 0;
+        let mut indicators = Vec::new();
+
+        // 1. DNS Resolution
+        if !dns.resolves {
+            return ScoreCard { total: 0, label: "Inactive".to_string(), indicators };
         }
+        score += 20;
+        indicators.push("Active Live DNS Resolution".to_string());
+
+        // 2. ASN / Infrastructure Reputation Weighting
+        if let Some(asn) = &dns.asn_hint {
+            let asn_upper = asn.to_uppercase();
+            let is_high_risk = HIGH_RISK_ASN_KEYWORDS
+                .iter()
+                .any(|&keyword| asn_upper.contains(keyword));
+
+            if is_high_risk {
+                score += 20;
+                indicators.push(format!("High-Risk Infrastructure / ASN Detected ({})", asn));
+            }
+        }
+
+        // 3. MX Records (Active Phishing Capability)
+        if mx_active {
+            score += 30;
+            indicators.push("Active Mail Exchanger (MX Records Setup)".to_string());
+        }
+
+        // 4. WHOIS Domain Age
+        if let Some(w) = whois {
+            if let Some(age) = w.age_days {
+                if age < 30 {
+                    score += 25;
+                    indicators.push("Newly Registered Infrastructure (<30 days old)".to_string());
+                } else if age < 90 {
+                    score += 10;
+                    indicators.push("Recent Domain Registration History (<90 days old)".to_string());
+                }
+            }
+        }
+
+        // 5. HTTP Brand Fingerprinting
+        if let Some(h) = http {
+            if h.similarity_score > 0.85 {
+                score += 25;
+                indicators.push(format!("High Brand Page Similarity Index ({:.1}%)", h.similarity_score * 100.0));
+            }
+        }
+
+        // 6. TLS / SSL Inspection
+        if let Some(t) = tls {
+            if t.san_mismatch {
+                score += 10;
+                indicators.push("TLS Subject Alternative Name Mismatch Encountered".to_string());
+            }
+        }
+
+        // Calculate final classification
+        let total = (score.min(100)) as u8;
+        let label = match total {
+            80..=100 => "Critical".to_string(),
+            50..=79  => "High".to_string(),
+            20..=49  => "Medium".to_string(),
+            _        => "Low".to_string(),
+        };
+
+        ScoreCard { total, label, indicators }
     }
 }
