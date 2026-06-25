@@ -1,0 +1,69 @@
+[package]
+name        = "brandguard"
+version     = "0.1.0"
+edition     = "2021"
+authors     = ["Griffin / Aymaan Balbale <aymaan@folsec.io>"]
+description = "DRPS/EASM Typosquatting & Lookalike Domain Detector — Threat Intelligence CLI"
+license     = "MIT"
+readme      = "README.md"
+
+[[bin]]
+name = "brandguard"
+path = "src/main.rs"
+
+# ─── Async runtime ────────────────────────────────────────────────────────────
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+futures = "0.3"
+
+# ─── CLI ──────────────────────────────────────────────────────────────────────
+clap = { version = "4", features = ["derive", "color"] }
+
+# ─── HTTP / TLS ───────────────────────────────────────────────────────────────
+reqwest = { version = "0.12", default-features = false, features = [
+    "rustls-tls",   # use rustls instead of native-tls for portability
+    "gzip",
+    "json",
+    "cookies",
+] }
+rustls = "0.23"
+
+# ─── DNS ──────────────────────────────────────────────────────────────────────
+hickory-resolver = { version = "0.24", features = ["tokio-runtime", "dns-over-https-rustls"] }
+
+# ─── TLS certificate inspection ───────────────────────────────────────────────
+rustls-pki-types = "1"
+webpki-roots      = "0.26"
+x509-parser       = "0.16"
+
+# ─── WHOIS ────────────────────────────────────────────────────────────────────
+whois-rust = "1.6"
+
+# ─── Text similarity (Levenshtein / Jaro-Winkler for homepage fingerprinting) ─
+strsim = "0.11"
+
+# ─── Serialisation ────────────────────────────────────────────────────────────
+serde       = { version = "1", features = ["derive"] }
+serde_json  = "1"
+
+# ─── HTML report templating ───────────────────────────────────────────────────
+tera = "1"
+
+# ─── Date / time ──────────────────────────────────────────────────────────────
+chrono = { version = "0.4", features = ["serde"] }
+
+# ─── Logging ──────────────────────────────────────────────────────────────────
+tracing            = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# ─── Utility ──────────────────────────────────────────────────────────────────
+anyhow   = "1"    # ergonomic error propagation
+thiserror = "1"   # typed errors inside library code
+tokio-util = { version = "0.7", features = ["compat"] }
+indicatif  = "0.17"   # progress bars for long scans
+
+[profile.release]
+opt-level = 3
+lto       = true
+codegen-units = 1
+strip     = "symbols"
